@@ -1,0 +1,24 @@
+# Entorno y dependencias
+.venv/
+__pycache__/
+*.pyc
+
+# SAM
+.aws-sam/
+
+# Caches de herramientas
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secretos y eventos con tokens reales
+.env
+.env.*
+events/*.local.json
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+.idea/

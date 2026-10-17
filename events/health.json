@@ -1,0 +1,14 @@
+{
+  "version": "2.0",
+  "routeKey": "GET /v1/health",
+  "rawPath": "/dev/v1/health",
+  "rawQueryString": "",
+  "headers": { "accept": "application/json" },
+  "requestContext": {
+    "http": { "method": "GET", "path": "/v1/health", "protocol": "HTTP/1.1", "sourceIp": "127.0.0.1", "userAgent": "sam-local" },
+    "routeKey": "GET /v1/health",
+    "stage": "dev",
+    "requestId": "local-test"
+  },
+  "isBase64Encoded": false
+}

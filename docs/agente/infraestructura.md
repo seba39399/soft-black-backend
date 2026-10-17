@@ -1,0 +1,10 @@
+# template.yaml (SAM)
+
+- Una función por dominio (`<Dominio>Function`, handler `adapters.inbound.http.<dominio>_api.handler`) con **todas** sus rutas como `Events`.
+- `DefaultAuthorizer: CognitoJwt`: no agregues `Auth: NONE` salvo que el contrato declare la ruta pública (`security: []`).
+- IAM con plantillas de SAM (`DynamoDBReadPolicy`, `S3ReadPolicy`, `AWSSecretsManagerGetSecretValuePolicy`…). Nunca `Resource: "*"`.
+- `Timeout` de funciones HTTP ≤ 12 s (API Gateway corta a 30 s y el frontend a 15 s). Lo largo va asíncrono.
+- Valores por entorno en `samconfig.toml` ([dev] / [prod]), sin secretos.
+- `uv run poe verify` incluye `sam validate --lint`.
+
+Lee antes de empezar: `docs/05-infraestructura-sam.md`

@@ -1,0 +1,11 @@
+# Contrato (openapi.yaml)
+
+- Es la **fuente de verdad** entre frontend y backend. Se edita **antes** que el código, y el cambio se aprueba antes de implementar.
+- JSON en camelCase. Fechas ISO 8601 UTC. Errores con `#/components/schemas/Error`.
+- Listados: parámetros `Limit` y `Cursor`; respuesta `{items, nextCursor}`. Sin `page` ni `total` salvo decisión explícita.
+- Cada ruta de datos: `x-recurso: <recurso>` (clave de RESOURCE_GROUPS) y respuestas 400/401/403 con los `$ref` comunes.
+- Rutas públicas: `security: []` y sin `x-recurso`.
+- Cambio incompatible → `/v2/...` o despliegue coordinado. Sube `info.version`.
+- El test `tests/contract/test_openapi_contract.py` debe pasar después del cambio.
+
+Lee antes de empezar: `docs/04-contrato-api.md`

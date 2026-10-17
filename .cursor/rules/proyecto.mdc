@@ -1,0 +1,15 @@
+---
+description: Reglas de esta carpeta (comandos, despliegue, git, secretos)
+alwaysApply: true
+---
+
+# soft-black-frontend-backend
+
+- Comandos: `uv sync`, `uv run poe verify` (requirements + lint + format-check + typecheck + test + `sam validate`), `sam build`.
+- Antes de dar una tarea por terminada: `uv run poe verify` en verde, y muestra la salida.
+- **No despliegues** (`sam deploy`) salvo que el usuario lo pida, y nunca a `prod` sin su confirmación explícita.
+- Si la carpeta no es un repositorio git, no ejecutes comandos de git. Nunca `git push` sin confirmación explícita.
+- Nunca pongas secretos en código, `template.yaml` ni `samconfig.toml`.
+- Una fuente de datos nueva (SQL, S3, Athena…): lee antes `docs/06-fuentes-de-datos.md`.
+- Procedimiento (skill): `/nuevo-endpoint` para agregar un endpoint (contrato → permiso → capas → template → tests).
+- Si una regla se contradice con los docs numerados de `docs/`, mandan los docs.

@@ -1,0 +1,119 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: soft-black-frontend API (Python 3.13 + Powertools + API Gateway HTTP API + Cognito)
+
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues: [dev, prod]
+  CognitoUserPoolId:
+    Type: String
+    Description: User Pool de ESTA cuenta/entorno (ej. us-east-1_AbC123)
+  CognitoClientIds:
+    Type: CommaDelimitedList
+    Description: App Clients públicos que pueden llamar a la API (audiencia del JWT)
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Description: Orígenes del frontend (CORS), ej. http://localhost:3000
+  LogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues: [DEBUG, INFO, WARNING, ERROR]
+
+Conditions:
+  IsProd: !Equals [!Ref Stage, prod]
+
+Globals:
+  Function:
+    Runtime: python3.13
+    Architectures: [arm64]
+    CodeUri: src/
+    MemorySize: 256
+    Timeout: 10 # por defecto; cada función puede sobrescribirlo (máx. útil ~12 s, ver docs 05 §6)
+    Tracing: Active
+    Environment:
+      Variables:
+        STAGE: !Ref Stage
+        TABLE_NAME: !Ref AppTable
+        POWERTOOLS_SERVICE_NAME: soft-black-frontend-api
+        POWERTOOLS_LOG_LEVEL: !Ref LogLevel
+
+Resources:
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref Stage
+      CorsConfiguration:
+        AllowOrigins: !Ref AllowedOrigins
+        AllowHeaders: [Authorization, Content-Type]
+        AllowMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+        MaxAge: 600
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: !If [IsProd, 100, 20]
+        ThrottlingRateLimit: !If [IsProd, 50, 10]
+      Auth:
+        DefaultAuthorizer: CognitoJwt # toda ruta protegida salvo Auth NONE explícito
+        Authorizers:
+          CognitoJwt:
+            IdentitySource: $request.header.Authorization
+            JwtConfiguration:
+              issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPoolId}
+              audience: !Ref CognitoClientIds
+
+  # ── Rutas transversales: /v1/health y /v1/me/permissions ─────────────────
+  PlatformFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: adapters.inbound.http.platform_api.handler
+      Events:
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /v1/health
+            Method: GET
+            Auth:
+              Authorizer: NONE # única ruta pública
+        MyPermissions:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /v1/me/permissions
+            Method: GET
+
+  # ── Dominio dashboard_1: una función por dominio, todas sus rutas ────────
+  Dashboard1Function:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: adapters.inbound.http.dashboard_1_api.handler
+      Policies:
+        - DynamoDBReadPolicy: # solo lectura
+            TableName: !Ref AppTable
+      Events:
+        ListarIndicadores:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /v1/dashboard_1/indicadores
+            Method: GET
+
+  AppTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub soft-black-frontend-${Stage}
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !If [IsProd, true, false]
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+
+Outputs:
+  ApiUrl:
+    Description: Valor para NEXT_PUBLIC_API_BASE_URL del frontend (sin barra final)
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}

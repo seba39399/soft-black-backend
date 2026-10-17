@@ -1,0 +1,40 @@
+version = 0.1
+
+[default.global.parameters]
+stack_name = "soft-black-frontend-api"
+
+[default.build.parameters]
+use_container = false  # SAM descarga wheels Linux arm64; usar true (requiere Docker) solo si una dependencia no publica wheels
+cached = true
+parallel = true
+
+[default.validate.parameters]
+lint = true
+
+[dev.deploy.parameters]
+profile = "soft-black-frontend-dev"                     # perfil AWS CLI de la cuenta DEV
+region = "us-east-1"
+stack_name = "soft-black-frontend-api-dev"
+resolve_s3 = true
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+parameter_overrides = [
+  "Stage=dev",
+  "CognitoUserPoolId=<user-pool-dev>",
+  "CognitoClientIds=<client-id-dev>",
+  "AllowedOrigins=http://localhost:3000",
+]
+
+[prod.deploy.parameters]
+profile = "soft-black-frontend-prod"                    # perfil AWS CLI de la cuenta PROD
+region = "us-east-1"
+stack_name = "soft-black-frontend-api-prod"
+resolve_s3 = true
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true                # en prod se revisa el changeset antes de aplicar
+parameter_overrides = [
+  "Stage=prod",
+  "CognitoUserPoolId=<user-pool-prod>",
+  "CognitoClientIds=<client-id-prod>",
+  "AllowedOrigins=https://<dominio-del-frontend>",
+]

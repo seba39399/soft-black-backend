@@ -1,0 +1,56 @@
+[project]
+name = "soft-black-frontend-api"
+version = "0.1.0"
+requires-python = ">=3.13,<3.14"
+# Dependencias de RUNTIME (van a Lambda). boto3 NO: lo trae el runtime.
+dependencies = [
+  "aws-lambda-powertools==3.35.0",
+  "pydantic==2.13.5",
+]
+
+[dependency-groups]
+# Solo desarrollo y tests (no se despliegan).
+dev = [
+  "boto3==1.43.100",
+  "boto3-stubs[dynamodb]==1.43.100",
+  "moto[dynamodb]==5.2.3",
+  "poethepoet==0.48.0",
+  "mypy==2.3.1",
+  "pytest==9.1.1",
+  "pyyaml==6.0.3",
+  "ruff==0.16.8",
+]
+
+# Tareas: uv run poe <tarea>   (funciona igual en PowerShell, macOS y Linux)
+[tool.poe.tasks]
+lint = "ruff check src tests"
+format = "ruff format src tests"
+format-check = "ruff format --check src tests"
+typecheck = "mypy src"
+test = "pytest"
+requirements = "uv export --no-dev --no-hashes --no-emit-project -q -o src/requirements.txt"
+validate = "sam validate --lint"
+verify = ["requirements", "lint", "format-check", "typecheck", "test", "validate"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+mypy_path = "src"
+explicit_package_bases = true
+
+# Los decoradores de exception_handler de Powertools no están tipados.
+[[tool.mypy.overrides]]
+module = "adapters.inbound.http.errors"
+disallow_untyped_decorators = false

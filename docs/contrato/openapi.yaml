@@ -1,0 +1,159 @@
+openapi: 3.1.0
+info:
+  title: soft-black-frontend API
+  version: 1.0.0
+  description: |
+    Contrato entre el frontend (soft-black-frontend) y el backend.
+    FUENTE DE VERDAD: este archivo. Todo endpoint se agrega aquí ANTES de
+    implementarse (ver docs/04-contrato-api.md).
+
+    Reglas transversales:
+    - JSON en camelCase. Fechas ISO 8601 UTC.
+    - Toda ruta exige `Authorization: Bearer <accessToken de Cognito>`,
+      salvo las marcadas con `security: []`.
+    - Errores: {"error": "...", "code": "..."} (schema Error).
+    - Listados: paginación por cursor (`limit`, `cursor` → `items`, `nextCursor`).
+
+servers:
+  - url: https://{apiId}.execute-api.us-east-1.amazonaws.com/{stage}
+    variables:
+      apiId: { default: xxxxxxxxxx }
+      stage: { default: dev, enum: [dev, prod] }
+
+security:
+  - cognito: []
+
+paths:
+  /v1/health:
+    get:
+      operationId: health
+      summary: Estado del servicio (sin autenticación)
+      security: []
+      responses:
+        "200":
+          description: Servicio disponible
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+
+  /v1/me/permissions:
+    get:
+      operationId: myPermissions
+      summary: Recursos (dashboards) a los que tiene acceso el usuario
+      x-recurso: null   # cualquier usuario autenticado
+      responses:
+        "200":
+          description: Permisos del usuario
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MyPermissions" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  # ── EJEMPLO ─────────────────────────────────────────────────────────────
+  # Endpoint de ejemplo que implementa el esqueleto (dominio dashboard_1).
+  # Sirve de modelo para los endpoints reales. Al crear tu primer dominio,
+  # bórralo junto con su código (ver docs/02-arquitectura.md §6).
+  /v1/dashboard_1/indicadores:
+    get:
+      operationId: listarIndicadores
+      summary: Indicadores de dashboard_1 (paginado)
+      x-recurso: dashboard_1
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Página de indicadores
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IndicadoresPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+components:
+  securitySchemes:
+    cognito:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token del User Pool de Cognito del entorno.
+
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Tamaño de página (1–200, por defecto 50).
+      schema: { type: integer, minimum: 1, maximum: 200 }
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Valor de `nextCursor` de la respuesta anterior. Opaco.
+      schema: { type: string, maxLength: 2048 }
+
+  responses:
+    BadRequest:
+      description: Parámetros inválidos (VALIDATION_ERROR)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthenticated:
+      description: Token ausente, inválido o expirado (UNAUTHENTICATED)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: El grupo del usuario no tiene acceso al recurso (FORBIDDEN)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [error, code]
+      properties:
+        error: { type: string, description: Mensaje en español apto para el usuario }
+        code:
+          type: string
+          enum: [VALIDATION_ERROR, UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, CONFLICT, INTERNAL_ERROR]
+
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok] }
+
+    MyPermissions:
+      type: object
+      required: [user, groups, resources]
+      properties:
+        user: { type: string, description: Username de Cognito }
+        groups: { type: array, items: { type: string } }
+        resources:
+          type: array
+          items: { type: string }
+          description: Claves de recurso = nombres de feature/ruta del frontend (ej. "ventas").
+
+    # ── EJEMPLO (dashboard_1) ──
+    Indicador:
+      type: object
+      required: [id, nombre, valor, actualizadoEn]
+      properties:
+        id: { type: string }
+        nombre: { type: string }
+        valor: { type: number }
+        actualizadoEn: { type: string, format: date-time }
+
+    IndicadoresPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Indicador" }
+        nextCursor:
+          type: [string, "null"]
+          description: null = no hay más páginas.
